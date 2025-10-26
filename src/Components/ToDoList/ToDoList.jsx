@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Check, Pencil, Trash } from "lucide-react";
 import {
   Dialog,
@@ -11,13 +11,12 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TasksListContext } from "../../Contexts/TasksList/TasksContext";
+import { AlertContext } from "@/Contexts/Alert/AlertContext";
 
-function ToDoList({
-  tasks,
-  completedTaskHandle,
-  deleteTaskHandle,
-  editTaskHandle,
-}) {
+function ToDoList({ tasksList, saveTasksToLocalStorage }) {
+  const { setTasksList } = useContext(TasksListContext);
+  const { setShowAlert } = useContext(AlertContext);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [editFormOpen, setEditFormOpen] = useState(false);
@@ -27,24 +26,79 @@ function ToDoList({
   // ✅ تحديث النص تلقائي لما تتغير المهمة المختارة
   useEffect(() => {
     if (editTaskId !== null) {
-      const currentTask = tasks.find((t) => t.id === editTaskId);
+      const currentTask = tasksList.find((t) => t.id === editTaskId);
       if (currentTask) setEditText(currentTask.text);
     }
-  }, [editTaskId, tasks]);
+  }, [editTaskId, tasksList]);
+
+  const editTaskHandle = (id, newText) => {
+    setTasksList((prev) => {
+      const updatedTasks = prev.map((task) =>
+        task.id === id ? { ...task, text: newText } : task
+      );
+
+      saveTasksToLocalStorage(updatedTasks);
+      return updatedTasks;
+    });
+
+    setShowAlert({
+      value: true,
+      message: "Task updated successfully!",
+    });
+    setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
+
+    saveTasksToLocalStorage(tasksList);
+  };
+
+  const completedTaskHandle = (id) => {
+    // 1️⃣ نحسب القايمة الجديدة بناءً على الحالية
+    const updatedTasks = tasksList.map((task) =>
+      task.id === id ? { ...task, completed: !task.completed } : task
+    );
+
+    // 2️⃣ نحدث الحالة
+    setTasksList(updatedTasks);
+
+    // 3️⃣ نحفظها في localStorage
+    saveTasksToLocalStorage(updatedTasks);
+
+    // 4️⃣ نعرض الرسالة
+    const updatedTask = updatedTasks.find((t) => t.id === id);
+
+    setShowAlert({
+      value: true,
+      message: updatedTask.completed
+        ? "Task marked as completed!"
+        : "Task marked as not completed!",
+    });
+
+    setTimeout(() => setShowAlert({ value: false, message: "" }), 3000);
+  };
+
+  const deleteTaskHandle = (id) => {
+    setTasksList((prevTasks) => prevTasks.filter((task) => task.id !== id));
+    setShowAlert({
+      value: true,
+      message: "Task deleted successfully!",
+    });
+    setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
+
+    saveTasksToLocalStorage(tasksList.filter((task) => task.id !== id));
+  };
 
   return (
     <>
       <div
         className={` tasks ${
-          tasks.length === 0 ? "" : "max-h-90 overflow-y-scroll"
+          tasksList.length === 0 ? "" : "max-h-90 overflow-y-scroll"
         }`}
       >
-        {tasks.length === 0 ? (
+        {tasksList.length === 0 ? (
           <p className="flex items-center justify-center p-2 my-4 text-lg font-bold rounded-lg bg-gradient-to-r from-rose-400 to-rose-600">
             No tasks available
           </p>
         ) : (
-          tasks.map((task) => (
+          tasksList.map((task) => (
             <div
               key={task.id}
               className="flex items-center justify-between p-2 my-4 text-lg font-bold transition-all duration-300 rounded-lg bg-gradient-to-r from-rose-400 to-rose-600 hover:scale-95 hover:shadow-lg"

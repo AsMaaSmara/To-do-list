@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import ToDoList from "../ToDoList/ToDoList";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { v4 as uuidv4 } from "uuid";
+import { useEffect } from "react";
+import { useContext } from "react";
+import { TasksListContext } from "../../Contexts/TasksList/TasksContext";
+import { AlertContext } from "@/Contexts/Alert/AlertContext";
 
 function ToDoListApp() {
   const [task, setTask] = useState({
@@ -12,35 +15,24 @@ function ToDoListApp() {
     completed: false,
     time: "",
   });
-  const [tasksList, setTasksList] = useState([]);
-  const [showAlert, setShowAlert] = useState({
-    value: false,
-    message: "",
-  });
+  const { tasksList, setTasksList } = useContext(TasksListContext);
+  const { setShowAlert } = useContext(AlertContext);
   const [filter, setFilter] = useState("all");
 
-  // 🧩 تحميل المهام من localStorage
   useEffect(() => {
     const storedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
     setTasksList(storedTasks);
   }, []);
 
-  // 🧠 حفظ المهام في localStorage (useCallback علشان متتغيرش)
-  const saveTasksToLocalStorage = useCallback((tasks) => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, []);
-
-  // ✍️ تحديث النص داخل input
-  const handleInputChange = useCallback((e) => {
+  const handleInputChange = (e) => {
     setTask((prev) => ({
       ...prev,
       text: e.target.value,
       time: new Date().toLocaleString(),
     }));
-  }, []);
+  };
 
-  // ➕ إضافة مهمة جديدة
-  const handleAddTask = useCallback(() => {
+  const handleAddTask = () => {
     if (task.text.trim() === "") {
       setShowAlert({
         value: true,
@@ -50,12 +42,12 @@ function ToDoListApp() {
       return;
     }
 
-    const newTask = { ...task, id: uuidv4() };
-    const updatedTasks = [...tasksList, newTask];
+    const newTask = {
+      ...task,
+      id: uuidv4(),
+    };
 
-    setTasksList(updatedTasks);
-    saveTasksToLocalStorage(updatedTasks);
-
+    setTasksList((prev) => [...prev, newTask]);
     setTask({ id: "", text: "", completed: false, time: "" });
 
     setShowAlert({
@@ -63,75 +55,19 @@ function ToDoListApp() {
       message: "New task added successfully!",
     });
     setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
-  }, [task, tasksList, saveTasksToLocalStorage]);
 
-  // ✏️ تعديل مهمة
-  const editTaskHandle = useCallback(
-    (id, newText) => {
-      const updatedTasks = tasksList.map((task) =>
-        task.id === id ? { ...task, text: newText } : task
-      );
+    saveTasksToLocalStorage([...tasksList, newTask]);
+  };
 
-      setTasksList(updatedTasks);
-      saveTasksToLocalStorage(updatedTasks);
+  const saveTasksToLocalStorage = (tasks) => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  };
 
-      setShowAlert({
-        value: true,
-        message: "Task updated successfully!",
-      });
-      setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
-    },
-    [tasksList, saveTasksToLocalStorage]
-  );
-
-  // ✅ تحديد المهام المكتملة
-  const completedTaskHandle = useCallback(
-    (id) => {
-      const updatedTasks = tasksList.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      );
-
-      const updatedTask = updatedTasks.find((t) => t.id === id);
-
-      setTasksList(updatedTasks);
-      saveTasksToLocalStorage(updatedTasks);
-
-      setShowAlert({
-        value: true,
-        message: updatedTask.completed
-          ? "Task marked as completed!"
-          : "Task marked as not completed!",
-      });
-      setTimeout(() => setShowAlert({ value: false, message: "" }), 3000);
-    },
-    [tasksList, saveTasksToLocalStorage]
-  );
-
-  // 🗑️ حذف مهمة
-  const deleteTaskHandle = useCallback(
-    (id) => {
-      const updatedTasks = tasksList.filter((task) => task.id !== id);
-
-      setTasksList(updatedTasks);
-      saveTasksToLocalStorage(updatedTasks);
-
-      setShowAlert({
-        value: true,
-        message: "Task deleted successfully!",
-      });
-      setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
-    },
-    [tasksList, saveTasksToLocalStorage]
-  );
-
-  // 🧮 فلترة المهام (useMemo لتحسين الأداء)
-  const filteredTasks = useMemo(() => {
-    return tasksList.filter((task) => {
-      if (filter === "done") return task.completed;
-      if (filter === "notyet") return !task.completed;
-      return true;
-    });
-  }, [tasksList, filter]);
+  const filteredTasks = tasksList.filter((task) => {
+    if (filter === "done") return task.completed;
+    if (filter === "notyet") return !task.completed;
+    return true;
+  });
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-950">
@@ -140,7 +76,6 @@ function ToDoListApp() {
           My To-Do List
         </h1>
 
-        {/* 🔘 الفلاتر */}
         <div className="flex items-center justify-center mb-4">
           <ToggleGroup
             type="single"
@@ -155,15 +90,11 @@ function ToDoListApp() {
           </ToggleGroup>
         </div>
 
-        {/* 📋 قائمة المهام */}
         <ToDoList
-          tasks={filteredTasks}
-          completedTaskHandle={completedTaskHandle}
-          deleteTaskHandle={deleteTaskHandle}
-          editTaskHandle={editTaskHandle}
+          tasksList={filteredTasks}
+          saveTasksToLocalStorage={saveTasksToLocalStorage}
         />
 
-        {/* ✍️ إضافة مهمة جديدة */}
         <div className="flex flex-col">
           <input
             type="text"
@@ -181,14 +112,6 @@ function ToDoListApp() {
             Add New Task
           </Button>
         </div>
-
-        {/* ⚠️ التنبيه */}
-        {showAlert.value && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertTitle>Look!</AlertTitle>
-            <AlertDescription>{showAlert.message}</AlertDescription>
-          </Alert>
-        )}
       </div>
     </div>
   );
