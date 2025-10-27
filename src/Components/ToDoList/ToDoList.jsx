@@ -15,7 +15,7 @@ import { TasksListContext } from "../../Contexts/TasksList/TasksContext";
 import { AlertContext } from "@/Contexts/Alert/AlertContext";
 
 function ToDoList({ tasksList, saveTasksToLocalStorage }) {
-  const { setTasksList } = useContext(TasksListContext);
+  const { dispatch } = useContext(TasksListContext);
   const { setShowAlert } = useContext(AlertContext);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
@@ -32,13 +32,9 @@ function ToDoList({ tasksList, saveTasksToLocalStorage }) {
   }, [editTaskId, tasksList]);
 
   const editTaskHandle = (id, newText) => {
-    setTasksList((prev) => {
-      const updatedTasks = prev.map((task) =>
-        task.id === id ? { ...task, text: newText } : task
-      );
-
-      saveTasksToLocalStorage(updatedTasks);
-      return updatedTasks;
+    dispatch({
+      type: "EDIT_TASK",
+      payload: { id, newText, saveTasksToLocalStorage },
     });
 
     setShowAlert({
@@ -51,39 +47,26 @@ function ToDoList({ tasksList, saveTasksToLocalStorage }) {
   };
 
   const completedTaskHandle = (id) => {
-    // 1️⃣ نحسب القايمة الجديدة بناءً على الحالية
-    const updatedTasks = tasksList.map((task) =>
-      task.id === id ? { ...task, completed: !task.completed } : task
-    );
-
-    // 2️⃣ نحدث الحالة
-    setTasksList(updatedTasks);
-
-    // 3️⃣ نحفظها في localStorage
-    saveTasksToLocalStorage(updatedTasks);
-
-    // 4️⃣ نعرض الرسالة
-    const updatedTask = updatedTasks.find((t) => t.id === id);
+    dispatch({
+      type: "TOGGLE_TASK_COMPLETION",
+      payload: { id, saveTasksToLocalStorage },
+    });
 
     setShowAlert({
       value: true,
-      message: updatedTask.completed
-        ? "Task marked as completed!"
-        : "Task marked as not completed!",
+      message: "Task completion status toggled!",
     });
-
-    setTimeout(() => setShowAlert({ value: false, message: "" }), 3000);
+    setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
   };
 
   const deleteTaskHandle = (id) => {
-    setTasksList((prevTasks) => prevTasks.filter((task) => task.id !== id));
+    dispatch({ type: "REMOVE_TASK", payload: { id, saveTasksToLocalStorage } });
+
     setShowAlert({
       value: true,
       message: "Task deleted successfully!",
     });
     setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
-
-    saveTasksToLocalStorage(tasksList.filter((task) => task.id !== id));
   };
 
   return (

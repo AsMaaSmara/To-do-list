@@ -1,10 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Button } from "../ui/button";
 import ToDoList from "../ToDoList/ToDoList";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { v4 as uuidv4 } from "uuid";
-import { useEffect } from "react";
-import { useContext } from "react";
 import { TasksListContext } from "../../Contexts/TasksList/TasksContext";
 import { AlertContext } from "@/Contexts/Alert/AlertContext";
 
@@ -15,14 +12,21 @@ function ToDoListApp() {
     completed: false,
     time: "",
   });
-  const { tasksList, setTasksList } = useContext(TasksListContext);
+  const { tasksList, dispatch } = useContext(TasksListContext);
   const { setShowAlert } = useContext(AlertContext);
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    const storedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
-    setTasksList(storedTasks);
-  }, []);
+    const storedTasks = JSON.parse(localStorage.getItem("tasks"));
+    if (storedTasks) {
+      storedTasks.forEach((task) => {
+        dispatch({
+          type: "ADD_TASK",
+          payload: { task, saveTasksToLocalStorage },
+        });
+      });
+    }
+  }, [dispatch]);
 
   const handleInputChange = (e) => {
     setTask((prev) => ({
@@ -42,21 +46,13 @@ function ToDoListApp() {
       return;
     }
 
-    const newTask = {
-      ...task,
-      id: uuidv4(),
-    };
-
-    setTasksList((prev) => [...prev, newTask]);
-    setTask({ id: "", text: "", completed: false, time: "" });
+    dispatch({ type: "ADD_TASK", payload: { task, saveTasksToLocalStorage } });
 
     setShowAlert({
       value: true,
       message: "New task added successfully!",
     });
     setTimeout(() => setShowAlert({ value: false, message: "" }), 2000);
-
-    saveTasksToLocalStorage([...tasksList, newTask]);
   };
 
   const saveTasksToLocalStorage = (tasks) => {
